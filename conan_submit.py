@@ -15,7 +15,7 @@ import os
 import argparse
 import logging
 import json
-from typing import Optional, Any, Tuple
+from typing import Optional, Any, Tuple, Sequence
 import subprocess
 from urllib.parse import urlparse, quote_plus
 import uuid
@@ -111,9 +111,9 @@ def get_conan_version(conan_path: str) -> Optional[str]:
         return None
 
 
-def make_dependency(package: Package) -> dict:
+def make_dependency(package: Package) -> dict[str, str|dict[str, str]|Sequence[str]]:
     """Create a Dependency Graph package from a Conan package."""
-    data = {
+    data: dict[str, str|dict[str, str]|Sequence[str]] = {
         "package_url": make_purl(package),
         "dependencies": list({make_purl(child, dep=True) for child in package.children}),
     }
@@ -124,6 +124,11 @@ def make_dependency(package: Package) -> dict:
     if package.relationship is not None:
         data["relationship"] = package.relationship
 
+    for key in conan_not_ok_keys:
+        if key in package.metadata:
+            data["metadata"] = {}
+            data["metadata"][key] = package.metadata[key]  # type: ignore
+
     return data
 
 
@@ -133,6 +138,8 @@ conan_mapped_metadata_keys = {"sha": "rrev"}
 conan_complex_keys = ("ref", "settings", "cpp_info", "options_definitions", "default_options", "options")
 # keys already handled by previous processing
 conan_handled_keys = ("dependencies",)
+# keys not OK for purl submission in Dependency Graph
+conan_not_ok_keys = ("386",)
 
 
 def make_purl(package: Package, dep: bool=False) -> str:
@@ -146,7 +153,7 @@ def make_purl(package: Package, dep: bool=False) -> str:
         query = {}
 
         for key, value in package.metadata.items():
-            if key not in conan_mapped_metadata_keys and key not in conan_handled_keys:
+            if key not in conan_mapped_metadata_keys and key not in conan_handled_keys and key not in conan_not_ok_keys:
                 query[key] = value
 
         for key, mapped_name in conan_mapped_metadata_keys.items():
@@ -315,7 +322,7 @@ def submit_graph(server: str, repo: git.Repo, graph: dict, conan_path: str, cona
     session = requests.Session()
 
     LOG.debug(prepared.headers)
-    LOG.debug(prepared.body)
+    LOG.debug(json.dumps(graph, indent=2))
 
     if not dry_run:
         response = session.send(prepared)
