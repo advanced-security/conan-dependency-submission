@@ -114,9 +114,7 @@ def get_conan_version(conan_path: str) -> Optional[str]:
 def make_dependency(package: Package) -> dict:
     """Create a Dependency Graph package from a Conan package."""
     data = {
-        "name": package.name,
-        "version": package.version,
-        "purl": make_purl(package),
+        "package_url": make_purl(package),
         "dependencies": list({make_purl(child, dep=True) for child in package.children}),
     }
 
