@@ -17,7 +17,7 @@ import logging
 import json
 from typing import Optional, Any, Tuple
 import subprocess
-from urllib.parse import urlparse
+from urllib.parse import urlparse, quote_plus
 import uuid
 import datetime
 import pathlib
@@ -242,7 +242,7 @@ def build_tree(tree: anytree.AnyNode, packages: dict[int, Package], index:int=0)
         LOG.error("no package for index %s", index)
 
 
-def submit_graph(repo: git.Repo, graph: dict, conan_path: str, conanfile: Any) -> None:
+def submit_graph(server: str, repo: git.Repo, graph: dict, conan_path: str, conanfile: Any, dry_run: bool=False) -> None:
     """Submit the graph to the GitHub Dependency Graph using the Submission API."""
     repo_commit = repo.head.commit.hexsha
     repo_ref = f"refs/heads/{str(repo.head.ref)}"
@@ -307,8 +307,22 @@ def submit_graph(repo: git.Repo, graph: dict, conan_path: str, conanfile: Any) -
 
     LOG.debug("graph: %s", json.dumps(graph, indent=2))
 
-    # TODO: actually submit it!
-    # TODO: add --dry-run option
+    host_and_path = f"api.github.com" if server in ("github.com", "api.github.com") else f"{quote_plus(server)}/api/v3"
+    submission_url = f"https://{host_and_path}/repos/{quote_plus(owner)}/{quote_plus(reponame)}/dependency-graph/snapshots"
+
+    LOG.debug("Submitting to %s", submission_url)
+
+    request = requests.Request("POST", submission_url, headers=headers, json=graph)
+    prepared = request.prepare()
+    session = requests.Session()
+
+    LOG.debug(prepared.headers)
+    LOG.debug(prepared.body)
+
+    if not dry_run:
+        response = session.send(prepared)
+        LOG.debug("response: %s", response.json())
+
 
 
 def add_args(parser: argparse.ArgumentParser) -> None:
@@ -319,6 +333,7 @@ def add_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--conanfile", required=False, help="Path to conanfile.py or conanfile.txt")
     parser.add_argument("--graph", required=False, help="Path to Conan build graph JSON file")
     parser.add_argument("--debug", "-d", action="store_true", help="Enable debug output")
+    parser.add_argument("--dry-run", action="store_true", help="Do not submit to GitHub server - just a dry-run")
 
 
 def main() -> None:
@@ -349,7 +364,7 @@ def main() -> None:
     # LOG.debug(json.dumps(graph, indent=2))
 
     if graph is not None:
-        submit_graph(repo, graph, args.conan_path, conanfile)
+        submit_graph(args.github_server, repo, graph, args.conan_path, conanfile, args.dry_run)
 
 
 if __name__ == "__main__":
