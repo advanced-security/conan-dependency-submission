@@ -3,6 +3,12 @@
 """
 Generate a graph from Conan packages,
 and submit to the GitHub Dependency Graph using the Submission API.
+
+See for reference:
+https://docs.conan.io/2/reference/conanfile/attributes.html
+https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan
+
+TODO: parse conanfiles using `conan.tools.files` to get metadata and avoid calling out to `conan`
 """
 
 import os
@@ -11,15 +17,16 @@ import logging
 import json
 from typing import Optional, Any, Tuple
 import subprocess
-import urllib
+from urllib.parse import urlparse
 import uuid
 import datetime
 import pathlib
 
+from furl import furl  # type: ignore
 import git
 from attrs import define
 import requests
-import anytree
+import anytree  # type: ignore
 
 
 LOG = logging.getLogger(__name__)
@@ -29,12 +36,17 @@ LOG.setLevel(logging.INFO)
 @define
 class Package(anytree.NodeMixin):
     """Conan package"""
+    id_: int
     name: str
     version: str
     sha: str
-    scope: str
-    relationship: str
-    metadata: Optional[dict[str, str]] = None
+    scope: Optional[str]
+    relationship: Optional[str]
+    metadata: dict[str, str]
+    dependencies: list[int]
+
+    def __repr__(self):
+        return f"Package({self.name}, {self.version})"
 
 
 def find_conanfile(repo: git.Repo) -> Optional[Any]:
@@ -87,6 +99,7 @@ def get_conan_version(conan_path: str) -> Optional[str]:
     """Get the version of Conan."""
     process = subprocess.run([conan_path, "--version"], capture_output=True)
     stdout = process.stdout.decode(encoding="utf-8").rstrip()
+    stderr = process.stderr.decode(encoding="utf-8").rstrip()
     if process.returncode != 0:
         LOG.error("conan --version failed: %s", stderr)
         return None
@@ -104,11 +117,8 @@ def make_dependency(package: Package) -> dict:
         "name": package.name,
         "version": package.version,
         "purl": make_purl(package),
-        "dependencies": list({make_purl(child) for child in package.children}),
+        "dependencies": list({make_purl(child, dep=True) for child in package.children}),
     }
-
-    if package.metadata is not None and package.metadata != {}:
-        data["metadata"] = package.metadata
 
     if package.scope is not None:
         data["scope"] = package.scope
@@ -119,87 +129,134 @@ def make_dependency(package: Package) -> dict:
     return data
 
 
-def make_purl(package: Package) -> str:
+# keys that are mapped to different names
+conan_mapped_metadata_keys = {"sha": "rrev"}
+# keys that are complex objects
+conan_complex_keys = ("ref", "settings", "cpp_info", "options_definitions", "default_options", "options")
+# keys already handled by previous processing
+conan_handled_keys = ("dependencies",)
+
+
+def make_purl(package: Package, dep: bool=False) -> str:
     """Create a Package URL from a Conan package reference."""
-    return f"pkg:conan/{package.name}@{package.version}{'#'+package.sha if package.sha is not None else ''}"
+    purl = furl()
+
+    purl.scheme = "pkg"
+    purl.path = f"conan/{package.name}@{package.version}"
+
+    if not dep:
+        query = {}
+
+        for key, value in package.metadata.items():
+            if key not in conan_mapped_metadata_keys and key not in conan_handled_keys:
+                query[key] = value
+
+        for key, mapped_name in conan_mapped_metadata_keys.items():
+            if key in package.metadata:
+                query[mapped_name] = package.get(key)
+
+        purl.set(query_params=query)
+
+    return purl.url
 
 
-def process_graph(graph: dict, tree: anytree.AnyNode) -> None:
-    """Process the Conan graph into a Tree."""
+def process_graph(graph: dict, packages: dict[int, Package], dep: bool=False) -> None:
+    """Process the Conan graph entries into a custom format."""
     for index, entry in graph.items():
         try:
+            if "id" not in entry:
+                continue
+            id_ = int(entry["id"])
+
             if "ref" not in entry:
                 continue
             ref = entry["ref"]
-            if ref != "conanfile":
+            
+            if "/" in ref:
                 name, remainder = ref.split("/")
-                try:
-                    version, sha = remainder.split("#")
-                except ValueError:
-                    LOG.debug("no sha for %s", ref)
-                    version = remainder
-                    sha = None
-                # TODO:
-                # add arch, os, compiler from "settings"
-                # add "license" array
-                # add "url" to know package repo this is from
-                # we can store 8 domain-specific attributes in the Dependency Graph
+            else:
+                name = ref
+                remainder = None
 
-                # TODO: pull these out of the "dependencies" keys of each graph node
-                # scope = "development" if "build" in entry and entry["build"] == "True" else "runtime"
-                # relationship = "direct" if "direct" in entry and entry["direct"] == "True" else "indirect"
+            if remainder is not None and "#" in remainder:
+                version, sha = remainder.split("#")
+            else:
+                version = remainder
+                sha = None
 
-                # TODO: build dependency tree from "dependencies" keys of each graph node
-                # we can then use this to determine if a package is a child of the top level, or not
-                # we might want to check if a package is a child of "conanfile", vs skipping it at present
-                metadata = {}
+            metadata = {}
 
-                # only 8 attributes are allowed in the Dependency Graph, and they must be scalar values
-                if "settings" in entry:
-                    if "os" in entry["settings"]:
-                        metadata["os"] = entry["settings"]["os"]
-                    if "arch" in entry["settings"]:
-                        metadata["arch"] = entry["settings"]["arch"]
-                    if "compiler" in entry["settings"]:
-                        metadata["compiler"] = entry["settings"]["compiler"] + f"-{entry['settings']['compiler.version']}" if "compiler.version" in entry["settings"] else ""
-                    if "compiler.cppstd" in entry["settings"]:
-                        metadata["cppstd"] = entry["settings"]["compiler.cppstd"]
-                    if "compiler.libcxx" in entry["settings"]:
-                        metadata["libcxx"] = entry["settings"]["compiler.libcxx"]
-                
-                if "url" in entry:
-                    metadata["index-url"] = entry["url"]
+            if "settings" in entry:
+                for key, value in entry["settings"].items():
+                    if value is not None:
+                        metadata[key] = value
 
-                if "license" in entry:
-                    lic = entry["license"]
-                    metadata["license"] = ",".join(lic) if isinstance(lic, list) else lic
+            if "options" in entry:
+                for key, value in entry["options"].items():
+                    if value is not None:
+                        metadata[key] = value
 
-                # 1 left!
-                if len(metadata.keys()) > 8:
-                    LOG.error("too many metadata attributes for %s", ref)
+            for key, value in entry.items():
+                if key not in conan_complex_keys and value is not None:
+                    metadata[key] = value
 
-                # TODO: put scope and relationship back in, once we've acquired them by traversing the dependency tree
-                package = Package(name=name, version=version, sha=sha, scope=None, relationship=None, metadata=metadata)
-                package.parent = tree
+            # TODO: consider how to put cpp_info in, given that it deeply nested
 
-                if "dependencies" in entry:
-                    process_graph(entry["dependencies"], package)
+            scope = None
+            if "context" in metadata:
+                scope = "development" if metadata["context"] == "build" else "runtime"
+
+            if scope is not None:
+                LOG.debug("%s/%s scope: %s", name, version, scope)
+
+            dependency_indexes = [int(id) for id in entry.get("dependencies", {}).keys()]
+
+            package = Package(id_=id_, name=name, version=version, sha=sha, scope=scope, relationship=None, metadata=metadata, dependencies=dependency_indexes)
+
+            # store dependency packages in a dict, indexed by id, so we can index into them later to retrieve relationship
+            packages[int(index)] = package
         except KeyError as err:
             LOG.error("graph is missing key: %s", err)
 
 
+def add_relationship(tree: anytree.AnyNode) -> None:
+    """Add the relationship between packages to the tree."""
+    for package in tree.descendants:
+        package.relationship = "direct" if getattr(package.parent, "id_", 0)  == 0 else "indirect"
+
+        LOG.debug("setting relationship for %s to %s", package.name, package.relationship)
+
+
+def build_tree(tree: anytree.AnyNode, packages: dict[int, Package], index:int=0) -> None:
+    """Build the tree of packages."""
+    if package := packages.get(index):
+        package.parent = tree
+
+        LOG.debug("adding %s to tree", package.name)
+        LOG.debug("parent: %s", package.parent.name)
+        LOG.debug("child IDs: %s", package.dependencies)
+
+        for child_index in package.dependencies:
+            build_tree(package, packages, child_index)
+    else:
+        LOG.error("no package for index %s", index)
+
+
 def submit_graph(repo: git.Repo, graph: dict, conan_path: str, conanfile: Any) -> None:
     """Submit the graph to the GitHub Dependency Graph using the Submission API."""
-    packages = anytree.AnyNode(name="packages")
-
     repo_commit = repo.head.commit.hexsha
     repo_ref = f"refs/heads/{str(repo.head.ref)}"
 
     LOG.debug("repo_commit: %s", repo_commit)
 
-    process_graph(graph["graph"]["nodes"], packages)
+    packages_dict: dict[int, Package] = {}
+    packages_tree = anytree.AnyNode(name="packages")
 
-    LOG.info(anytree.RenderTree(packages))
+    process_graph(graph["graph"]["nodes"], packages_dict)
+    build_tree(packages_tree, packages_dict)
+    add_relationship(packages_tree)
+
+    LOG.debug(anytree.RenderTree(packages_tree))
 
     # submit to GitHub using the Submission API
     gh_token = os.environ.get("GITHUB_TOKEN", None)
@@ -207,7 +264,7 @@ def submit_graph(repo: git.Repo, graph: dict, conan_path: str, conanfile: Any) -
         LOG.error("GITHUB_TOKEN is not set")
         return    
 
-    owner, reponame = urllib.parse.urlparse(repo.remote().url).path.rstrip(".git").split("/")[1:]
+    owner, reponame = urlparse(repo.remote().url).path.rstrip(".git").split("/")[1:]
     
     # set GitHub API headers
     headers = {
@@ -221,11 +278,11 @@ def submit_graph(repo: git.Repo, graph: dict, conan_path: str, conanfile: Any) -
     os.environ["GITHUB_TOKEN"] = ''
 
     graph = {
-        "version": 0,
+        "version": 0,   # TODO: should we generate this somehow?
         "sha": repo_commit,
         "ref": repo_ref,
         "job": {
-            "correlator": "conan",
+            "correlator": "conan-dependency-submission",
             "id": uuid.uuid4().hex,
         },
         "detector": {
@@ -241,15 +298,17 @@ def submit_graph(repo: git.Repo, graph: dict, conan_path: str, conanfile: Any) -
                 "file": {
                     "source_location": pathlib.Path(conanfile.abspath).relative_to(repo.working_dir).as_posix(),
                 },
-                # TODO: traverse tree properly
                 "resolved": {
-                    package.name: make_dependency(package) for package in packages.children
+                    package.name: make_dependency(package) for package in packages_dict.values() if package.name != "conanfile"
                 }
             }
         }
     }
 
     LOG.debug("graph: %s", json.dumps(graph, indent=2))
+
+    # TODO: actually submit it!
+    # TODO: add --dry-run option
 
 
 def add_args(parser: argparse.ArgumentParser) -> None:
@@ -279,7 +338,7 @@ def main() -> None:
         LOG.error("Cannot find remote for repo: %s", args.repo)
         return
 
-    remote_url = urllib.parse.urlparse(remote.url)
+    remote_url = urlparse(remote.url)
     if remote_url.scheme != "https" or remote_url.netloc != args.github_server:
         LOG.error("Remote is not a GitHub repo: %s", remote)
         return
@@ -287,7 +346,7 @@ def main() -> None:
 
     graph, conanfile = get_graph(args.conan_path, repo, args.conanfile)
 
-    LOG.debug(json.dumps(graph, indent=2))
+    # LOG.debug(json.dumps(graph, indent=2))
 
     if graph is not None:
         submit_graph(repo, graph, args.conan_path, conanfile)
