@@ -1,5 +1,5 @@
 attrs==22.2.0
-anytree==1.16.0
+anytree==2.10.0
 GitPython==3.1.37
 requests==2.31.0
 furl==2.1.3
