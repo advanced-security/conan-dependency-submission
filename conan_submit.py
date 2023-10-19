@@ -53,7 +53,7 @@ class Package(anytree.NodeMixin):
 def find_conanfile(repo: git.Repo) -> Optional[Any]:
     """Find a conanfile.py or conanfile.txt in the repo"""
     for item in repo.tree().traverse():
-        if item.name == "conanfile.py" or item.name == "conanfile.txt":
+        if item.name in ("conanfile.py", "conanfile.txt"):
             return item
     return None
 
@@ -73,7 +73,7 @@ def get_graph(
         if conanfile is None:
             if graphfile is not None:
                 try:
-                    with open(graphfile, "r") as file:
+                    with open(graphfile, "r", encoding="utf-8") as file:
                         graph = json.load(file)
                         return graph, graphfile
                 except Exception as err:
@@ -89,6 +89,7 @@ def get_graph(
         [conan_path, "graph", "info", conanfile.abspath, "--format=json"],
         capture_output=True,
         env={"PATH": os.environ["PATH"]},
+        check=False,
     )
     stdout, stderr = (
         process.stdout.decode(encoding="utf-8").rstrip(),
@@ -110,7 +111,7 @@ def get_graph(
 
 def get_conan_version(conan_path: str) -> Optional[str]:
     """Get the version of Conan."""
-    process = subprocess.run([conan_path, "--version"], capture_output=True)
+    process = subprocess.run([conan_path, "--version"], capture_output=True, check=False)
     stdout = process.stdout.decode(encoding="utf-8").rstrip()
     stderr = process.stderr.decode(encoding="utf-8").rstrip()
     if process.returncode != 0:
@@ -369,7 +370,7 @@ def submit_graph(
     LOG.debug("graph: %s", json.dumps(graph, indent=2))
 
     host_and_path = (
-        f"api.github.com"
+        "api.github.com"
         if server in ("github.com", "api.github.com")
         else f"{quote_plus(server)}/api/v3"
     )
