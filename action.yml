@@ -78,6 +78,7 @@ runs:
         # install conan
         "${PYTHON_CMD}" -m pip install --upgrade pip
         "${PYTHON_CMD}" -m pip install conan"${CONAN_VERSION}"
+        "${PYTHON_CMD}" -m pip install -r "${GITHUB_WORKSPACE}/requirements.txt"
 
         # run conan submission
         ./conan_submit.py --github-server "${INPUTS_GITHUB_SERVER}" --conanfile "${GITHUB_WORKSPACE}/${INPUTS_CONANFILE}" ${CONAN_FLAGS} "${GITHUB_WORKSPACE}"
