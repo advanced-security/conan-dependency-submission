@@ -2,7 +2,7 @@
 
 This repository contains a GitHub Action that can be used to submit details of a Conan package to GitHub's Dependency Graph.
 
-## Usage
+## Actions Usage
 
 To use this action, add the following to your workflow:
 
@@ -10,9 +10,34 @@ To use this action, add the following to your workflow:
 ...
 ```
 
-## Inputs
+### Inputs
 
 ...
+
+## Command Line Usage
+
+```bash
+./conan_submit.py --help
+usage: conan_submit.py [-h] [--github-server GITHUB_SERVER] [--conan-path CONAN_PATH] [--conanfile CONANFILE] [--graph GRAPH] [--debug] [--dry-run] repo
+
+Generate a graph from Conan packages, and submit to the GitHub Dependency Graph using the Submission API. See for reference: https://docs.conan.io/2/reference/conanfile/attributes.html https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan https://docs.github.com/en/enterprise-cloud@latest/rest/dependency-graph/dependency-submission?apiVersion=2022-11-28 https://docs.github.com/en/enterprise-
+server@3.9/rest/dependency-graph/dependency-submission?apiVersion=2022-11-28
+
+positional arguments:
+  repo                  GitHub repository path
+
+options:
+  -h, --help            show this help message and exit
+  --github-server GITHUB_SERVER
+                        GitHub server
+  --conan-path CONAN_PATH
+                        Path to conan executable
+  --conanfile CONANFILE
+                        Path to conanfile.py or conanfile.txt
+  --graph GRAPH         Path to Conan build graph JSON file
+  --debug, -d           Enable debug output
+  --dry-run             Do not submit to GitHub server - just a dry-run
+```
 
 ## FAQ
 
