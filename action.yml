@@ -1,5 +1,90 @@
-# TODO: install conan
+name: Conan Dependency Submission
+description: Submits Conan dependencies to the GitHub Dependency Submission API
+branding:
+  icon: 'check-circle'
+  color: 'blue'
+inputs:
+  target:
+    description: 'The target to submit dependencies for'
+    required: true
+    default: ${{ github.workspace }}
+  output:
+    description: 'The output file'
+    required: false
+    default: 'conan_dependencies.json'
+  python-version:
+    description: 'The version of python to use'
+    required: false
+    default: '3.10'
+    choices: ['3.12', '3.11', '3.10', '3.9', '3.8', '3.7']
+  conan-version:
+    description: 'The version of conan to use'
+    required: false
+    default: 'latest'
+  github-server:
+    description: 'The GitHub server to use'
+    required: false
+    default: 'github.com'
+  conanfile:
+    description: 'The conanfile to use'
+    required: false
+    default: 'conanfile.txt'
 
-# TODO: run Conan
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-# TODO: submit results to Dependency Submission API
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Run Conan
+      shell: bash
+
+      env:
+        INPUTS_TARGET: ${{ inputs.target }}
+        INPUTS_OUTPUT: ${{ inputs.output }}
+        INPUTS_PYTHON_VERSION: ${{ inputs.python-version }}
+        INPUTS_CONAN_VERSION: ${{ inputs.conan-version }}
+        INPUTS_GITHUB_SERVER: ${{ inputs.github-server }}
+        INPUTS_CONANFILE: ${{ inputs.conanfile }}
+        GH_TOKEN: ${{ github.token }}
+
+      run: |
+        CONAN_FLAGS=""
+
+        # set debug output
+        if [[ "${RUNNER_DEBUG}" == "1" ]]; then
+          CONAN_FLAGS+=" --debug"
+        fi
+
+        # set conan version
+        if [[ "${INPUTS_CONAN_VERSION}" == "latest" ]]; then
+          CONAN_VERSION=""
+        else
+          CONAN_VERSION="==${INPUTS_CONAN_VERSION}"
+        fi
+
+        # set python command
+        if [[ "${OSTYPE}" == "msys" ]]; then
+          PYTHON_CMD=python
+        else
+          PYTHON_CMD="python${INPUTS_PYTHON_VERSION}"
+        fi
+
+        # install conan
+        "${PYTHON_CMD}" -m pip install --upgrade pip
+        "${PYTHON_CMD}" -m pip install conan"${CONAN_VERSION}"
+
+        # run conan submission
+        ./conan_submit.py --github-server "${INPUTS_GITHUB_SERVER}" --conanfile "${GITHUB_WORKSPACE}/${INPUTS_CONANFILE}" ${CONAN_FLAGS} "${GITHUB_WORKSPACE}"
+
+    # - name: Upload Dependency Graph as debug artefact
+    #   if: ${{ always() && runner.debug == '1' && hashFiles(inputs.output) != '' }}
+    #   uses: actions/upload-artifact@v3
+    #   with:
+    #     name: ${{ inputs.output }}
+    #     path: ${{ inputs.output }}
