@@ -9,9 +9,6 @@ https://docs.conan.io/2/reference/conanfile/attributes.html
 https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan
 https://docs.github.com/en/enterprise-cloud@latest/rest/dependency-graph/dependency-submission?apiVersion=2022-11-28
 https://docs.github.com/en/enterprise-server@3.9/rest/dependency-graph/dependency-submission?apiVersion=2022-11-28
-
-
-TODO: parse conanfiles using `conan.tools.files` to get metadata and avoid calling out to `conan`
 """
 
 import os
