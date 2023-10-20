@@ -65,6 +65,7 @@ def get_graph(
     conan_path: str,
     repo: git.Repo,
     conanfile: Optional[str] = None,
+    conan_profile: Optional[str] = None,
     graphfile: Optional[str] = None,
 ) -> Tuple[Optional[dict], Optional[str]]:
     """
@@ -103,8 +104,13 @@ def get_graph(
     # conan graph info conanfile.py|conanfile.txt --format=json > graph.json
     # clear the env so we don't leak secrets, etc. to the untrusted process
     # TODO: can I do this with the Conan Python API instead?
+    conan_cmd = [conan_path, "graph", "info", conanfile, "--format=json"]
+
+    if conan_profile is not None:
+        conan_cmd.extend(["--profile", conan_profile])
+
     process = subprocess.run(
-        [conan_path, "graph", "info", conanfile, "--format=json"],
+        conan_cmd,
         capture_output=True,
         env={"PATH": os.environ["PATH"]},
         check=False,
@@ -208,7 +214,7 @@ def make_purl(package: Package, dep: bool = False) -> str:
 
         for key, mapped_name in conan_mapped_metadata_keys.items():
             if key in package.metadata:
-                query[mapped_name] = package.get(key)
+                query[mapped_name] = package.metadata.get(key)
 
         purl.set(query_params=query)
 
@@ -428,7 +434,13 @@ def add_args(parser: argparse.ArgumentParser) -> None:
         "--conan-path", default="conan", required=False, help="Path to conan executable"
     )
     parser.add_argument(
+        "--conan-profile", required=False, help="Conan profile to use"
+    )
+    parser.add_argument(
         "--conanfile", required=False, help="Path to conanfile.py or conanfile.txt"
+    )
+    parser.add_argument(
+        "--graphfile", required=False, help="Path to pre-made Conan graph JSON file"
     )
     parser.add_argument(
         "--graph", required=False, help="Path to Conan build graph JSON file"
@@ -465,11 +477,11 @@ def main() -> None:
         LOG.error("Remote is not a GitHub repo: %s", remote)
         return
 
-    graph, conanfile = get_graph(args.conan_path, repo, args.conanfile)
+    graph, conanfile = get_graph(args.conan_path, repo, conanfile=args.conanfile, conan_profile=args.conan_profile, graphfile=args.graphfile)
 
-    # LOG.debug(json.dumps(graph, indent=2))
+    LOG.debug(json.dumps(graph, indent=2))
 
-    if graph is not None:
+    if graph is not None and conanfile is not None:
         submit_graph(
             args.github_server, repo, graph, args.conan_path, conanfile, args.dry_run
         )
