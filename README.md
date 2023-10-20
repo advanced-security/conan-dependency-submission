@@ -1,5 +1,7 @@
 # Conan Dependency Submission for GitHub
 
+> ℹ️ This is an _unofficial_ tool created by Field Security Services, and is not officially supported by GitHub.
+
 This repository contains a GitHub Action that can be used to submit details of a [Conan](https://conan.io/) package to GitHub's [Dependency Graph](https://docs.github.com/).
 
 ## Actions Usage
