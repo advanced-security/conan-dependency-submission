@@ -193,7 +193,7 @@ conan_handled_keys = ("dependencies",)
 conan_not_ok_keys = ("386",)
 
 
-def make_purl(package: Package, dep: bool=False) -> str:
+def make_purl(package: Package, dep: bool = False) -> str:
     """Create a Package URL from a Conan package reference."""
     purl = furl()
 
