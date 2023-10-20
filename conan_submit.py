@@ -50,11 +50,11 @@ class Package(anytree.NodeMixin):
         return f"Package({self.name}, {self.version})"
 
 
-def find_conanfile(repo: git.Repo) -> Optional[Any]:
-    """Find a conanfile.py or conanfile.txt in the repo"""
+def find_conanfile(repo: git.Repo, target: str) -> Optional[Any]:
+    """Find a conanfile.py or conanfile.txt in the repo and in the target directory"""
     for item in repo.tree().traverse():
         try:
-            if item.name in ("conanfile.py", "conanfile.txt"):
+            if item.name in ("conanfile.py", "conanfile.txt") and pathlib.Path(item.abspath).is_relative_to(target):
                 return item.abspath
         except AttributeError:
             continue
@@ -64,6 +64,7 @@ def find_conanfile(repo: git.Repo) -> Optional[Any]:
 def get_graph(
     conan_path: str,
     repo: git.Repo,
+    target: str,
     conanfile: Optional[str] = None,
     conan_profile: Optional[str] = None,
     graphfile: Optional[str] = None,
@@ -73,7 +74,7 @@ def get_graph(
     call out to external conan process using subprocess.run()
     """
     if conanfile is None:
-        conanfile = find_conanfile(repo)
+        conanfile = find_conanfile(repo, target)
         if conanfile is None:
             if graphfile is not None:
                 try:
@@ -158,9 +159,7 @@ def make_dependency(
     """Create a Dependency Graph package from a Conan package."""
     data: dict[str, str | dict[str, str] | Sequence[str]] = {
         "package_url": make_purl(package),
-        "dependencies": list(
-            {make_purl(child, dep=True) for child in package.children}
-        ),
+        "dependencies": list({make_purl(child, dep=True) for child in package.children}),
     }
 
     if package.scope is not None:
@@ -194,7 +193,7 @@ conan_handled_keys = ("dependencies",)
 conan_not_ok_keys = ("386",)
 
 
-def make_purl(package: Package, dep: bool = False) -> str:
+def make_purl(package: Package) -> str:
     """Create a Package URL from a Conan package reference."""
     purl = furl()
 
@@ -205,11 +204,7 @@ def make_purl(package: Package, dep: bool = False) -> str:
         query = {}
 
         for key, value in package.metadata.items():
-            if (
-                key not in conan_mapped_metadata_keys
-                and key not in conan_handled_keys
-                and key not in conan_not_ok_keys
-            ):
+            if key not in conan_mapped_metadata_keys and key not in conan_handled_keys and key not in conan_not_ok_keys:
                 query[key] = value
 
         for key, mapped_name in conan_mapped_metadata_keys.items():
@@ -221,7 +216,7 @@ def make_purl(package: Package, dep: bool = False) -> str:
     return purl.url
 
 
-def process_graph(graph: dict, packages: dict[int, Package], dep: bool = False) -> None:
+def process_graph(graph: dict, packages: dict[int, Package]) -> None:
     """Process the Conan graph entries into a custom format."""
     for index, entry in graph.items():
         try:
@@ -270,9 +265,7 @@ def process_graph(graph: dict, packages: dict[int, Package], dep: bool = False) 
             if scope is not None:
                 LOG.debug("%s/%s scope: %s", name, version, scope)
 
-            dependency_indexes = [
-                int(id) for id in entry.get("dependencies", {}).keys()
-            ]
+            dependency_indexes = [int(id) for id in entry.get("dependencies", {}).keys()]
 
             package = Package(
                 id_=id_,
@@ -285,7 +278,8 @@ def process_graph(graph: dict, packages: dict[int, Package], dep: bool = False) 
                 dependencies=dependency_indexes,
             )
 
-            # store dependency packages in a dict, indexed by id, so we can index into them later to retrieve relationship
+            # store dependency packages in a dict, indexed by id,
+            # so we can index into them later to retrieve relationship
             packages[int(index)] = package
         except KeyError as err:
             LOG.error("graph is missing key: %s", err)
@@ -294,18 +288,12 @@ def process_graph(graph: dict, packages: dict[int, Package], dep: bool = False) 
 def add_relationship(tree: anytree.AnyNode) -> None:
     """Add the relationship between packages to the tree."""
     for package in tree.descendants:
-        package.relationship = (
-            "direct" if getattr(package.parent, "id_", 0) == 0 else "indirect"
-        )
+        package.relationship = "direct" if getattr(package.parent, "id_", 0) == 0 else "indirect"
 
-        LOG.debug(
-            "setting relationship for %s to %s", package.name, package.relationship
-        )
+        LOG.debug("setting relationship for %s to %s", package.name, package.relationship)
 
 
-def build_tree(
-    tree: anytree.AnyNode, packages: dict[int, Package], index: int = 0
-) -> None:
+def build_tree(tree: anytree.AnyNode, packages: dict[int, Package], index: int = 0) -> None:
     """Build the tree of packages."""
     if package := packages.get(index):
         package.parent = tree
@@ -388,9 +376,7 @@ def submit_graph(
             conanfile_path.name: {
                 "name": conanfile_path.name,
                 "file": {
-                    "source_location": conanfile_path
-                    .relative_to(repo.working_dir)
-                    .as_posix(),
+                    "source_location": conanfile_path.relative_to(repo.working_dir).as_posix(),
                 },
                 "resolved": {
                     package.name: make_dependency(package)
@@ -403,12 +389,10 @@ def submit_graph(
 
     LOG.debug("graph: %s", json.dumps(graph, indent=2))
 
-    host_and_path = (
-        "api.github.com"
-        if server in ("github.com", "api.github.com")
-        else f"{quote_plus(server)}/api/v3"
+    host_and_path = "api.github.com" if server in ("github.com", "api.github.com") else f"{quote_plus(server)}/api/v3"
+    submission_url = (
+        f"https://{host_and_path}/repos/{quote_plus(owner)}/{quote_plus(reponame)}/dependency-graph/snapshots"
     )
-    submission_url = f"https://{host_and_path}/repos/{quote_plus(owner)}/{quote_plus(reponame)}/dependency-graph/snapshots"
 
     LOG.debug("Submitting to %s", submission_url)
 
@@ -427,27 +411,13 @@ def submit_graph(
 def add_args(parser: argparse.ArgumentParser) -> None:
     """Add command line arguments to parser"""
     parser.add_argument("repo", help="GitHub repository path")
-    parser.add_argument(
-        "--github-server", default="github.com", required=False, help="GitHub server"
-    )
-    parser.add_argument(
-        "--conan-path", default="conan", required=False, help="Path to conan executable"
-    )
-    parser.add_argument(
-        "--conan-profile", required=False, help="Name of Conan profile to use"
-    )
-    parser.add_argument(
-        "--conanfile", required=False, help="Path to conanfile.py or conanfile.txt"
-    )
-    parser.add_argument(
-        "--graphfile", required=False, help="Path to pre-made Conan graph JSON file"
-    )
-    parser.add_argument(
-        "--graph", required=False, help="Path to Conan build graph JSON file"
-    )
-    parser.add_argument(
-        "--debug", "-d", action="store_true", help="Enable debug output"
-    )
+    parser.add_argument("--target", required=False, help="Target directory for Conan package")
+    parser.add_argument("--github-server", default="github.com", required=False, help="GitHub server")
+    parser.add_argument("--conan-path", default="conan", required=False, help="Path to conan executable")
+    parser.add_argument("--conan-profile", required=False, help="Name of Conan profile to use")
+    parser.add_argument("--conanfile", required=False, help="Path to conanfile.py or conanfile.txt")
+    parser.add_argument("--graphfile", required=False, help="Path to pre-made Conan graph JSON file")
+    parser.add_argument("--debug", "-d", action="store_true", help="Enable debug output")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -472,19 +442,26 @@ def main() -> None:
         LOG.error("Cannot find remote for repo: %s", args.repo)
         return
 
+    target = args.target if args.target is not None else args.repo
+
     remote_url = urlparse(remote.url)
     if remote_url.scheme != "https" or remote_url.netloc != args.github_server:
         LOG.error("Remote is not a GitHub repo: %s", remote)
         return
 
-    graph, conanfile = get_graph(args.conan_path, repo, conanfile=args.conanfile, conan_profile=args.conan_profile, graphfile=args.graphfile)
+    graph, conanfile = get_graph(
+        args.conan_path,
+        repo,
+        target,
+        conanfile=args.conanfile,
+        conan_profile=args.conan_profile,
+        graphfile=args.graphfile,
+    )
 
     LOG.debug(json.dumps(graph, indent=2))
 
     if graph is not None and conanfile is not None:
-        submit_graph(
-            args.github_server, repo, graph, args.conan_path, conanfile, args.dry_run
-        )
+        submit_graph(args.github_server, repo, graph, args.conan_path, conanfile, args.dry_run)
 
 
 if __name__ == "__main__":

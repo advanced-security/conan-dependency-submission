@@ -1,17 +1,12 @@
 name: Conan Dependency Submission
 description: Submits Conan dependencies to the GitHub Dependency Submission API
 branding:
-  icon: 'check-circle'
+  icon: 'square'
   color: 'blue'
 inputs:
   target:
-    description: 'The target to submit dependencies for'
-    required: true
-    default: ${{ github.workspace }}
-  output:
-    description: 'The output file'
+    description: 'The target directory to submit dependencies for'
     required: false
-    default: 'conan_dependencies.json'
   python-version:
     description: 'The version of python to use'
     required: false
@@ -48,7 +43,6 @@ runs:
 
       env:
         INPUTS_TARGET: ${{ inputs.target }}
-        INPUTS_OUTPUT: ${{ inputs.output }}
         INPUTS_PYTHON_VERSION: ${{ inputs.python-version }}
         INPUTS_CONAN_VERSION: ${{ inputs.conan-version }}
         INPUTS_GITHUB_SERVER: ${{ inputs.github-server }}
@@ -62,6 +56,11 @@ runs:
         # set debug output
         if [[ "${RUNNER_DEBUG}" == "1" ]]; then
           CONAN_FLAGS+=" --debug"
+        fi
+
+        # set target directory, if given
+        if [[ -n "${INPUTS_TARGET}" ]]; then
+          CONAN_FLAGS+=" --target ${INPUTS_TARGET}"
         fi
 
         # set conan version
@@ -84,22 +83,24 @@ runs:
         fi
 
         # upgrade pip
-        "${PYTHON_CMD}" -m pip install --upgrade pip
+        "${PYTHON_CMD}" -m pip -q install --upgrade pip
 
         # install conan
-        "${PYTHON_CMD}" -m pip install conan"${CONAN_VERSION}"
+        "${PYTHON_CMD}" -m pip -q install conan"${CONAN_VERSION}"
 
         # set conan-profile location, if given, or use/set default
         if [[ -n "${INPUTS_CONAN_PROFILE}" ]]; then
           CONAN_FLAGS+=" --conan-profile ${INPUTS_CONAN_PROFILE}"
         else
-          if ! conan profile path default 2>&1 >/dev/null; then
-            conan profile detect
+          if ! conan profile path default >/dev/null 2>&1 ; then
+            echo "::debug::No default Conan profile found, creating one"
+            CONAN_PROFILE_OUTPUT=$(conan profile detect 2>&1)
+            echo "::debug::${CONAN_PROFILE_OUTPUT}"
           fi
         fi
 
         # install script dependencies
-        "${PYTHON_CMD}" -m pip install -r "${GITHUB_ACTION_PATH}/requirements.txt"
+        "${PYTHON_CMD}" -m pip install -q -r "${GITHUB_ACTION_PATH}/requirements.txt"
 
         # run conan submission
         ./conan_submit.py --github-server "${INPUTS_GITHUB_SERVER}" ${CONAN_FLAGS} "${GITHUB_WORKSPACE}"
