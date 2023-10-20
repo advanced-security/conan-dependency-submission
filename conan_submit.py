@@ -125,6 +125,7 @@ def get_graph(
     except json.JSONDecodeError as err:
         LOG.error("conan graph info output is not valid JSON: %s", err)
         LOG.debug(stdout)
+        LOG.debug("conanfile %s: %s", conanfile, open(conanfile, "r", encoding="utf-8").read())
         return None, None
 
 
