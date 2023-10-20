@@ -119,6 +119,7 @@ def get_graph(
             return None, None
         # just carry on with other "errors" - some conflicts raise errors, but still generate a graph
         # TODO: catch more fatal errors, e.g. permission denied
+        LOG.debug("conan graph info stderr:\n%s", stderr)
     try:
         graph = json.loads(stdout)
         return graph, conanfile
