@@ -64,7 +64,7 @@ def find_conanfile(repo: git.Repo) -> Optional[Any]:
 def get_graph(
     conan_path: str,
     repo: git.Repo,
-    conanfile: Optional[Any] = None,
+    conanfile: Optional[str] = None,
     graphfile: Optional[str] = None,
 ) -> Tuple[Optional[dict], Optional[str]]:
     """
@@ -79,15 +79,18 @@ def get_graph(
                     with open(graphfile, "r", encoding="utf-8") as file:
                         graph = json.load(file)
                         return graph, graphfile
-                except (IOError, json.JSONDecodeError) as err:
-                    LOG.error("Cannot find or open graphfile: %s", err)
+                except IOError as err:
+                    LOG.error("Cannot open graphfile: %s", err)
+                    return None, None
+                except json.JSONDecodeError as err:
+                    LOG.error("graphfile is not valid JSON: %s", err)
                     return None, None
             LOG.error("Cannot find conanfile")
             return None, None
 
     # pre-check access to conanfile
     if not os.access(conanfile, os.R_OK):
-        LOG.error("Cannot read conanfile: %s", Path(conanfile).relative_to(repo.working_dir))
+        LOG.error("Cannot read conanfile: %s", pathlib.Path(conanfile).absolute().relative_to(repo.working_dir))
         return None, None
 
     try:
@@ -121,6 +124,7 @@ def get_graph(
         return graph, conanfile
     except json.JSONDecodeError as err:
         LOG.error("conan graph info output is not valid JSON: %s", err)
+        LOG.debug(stdout)
         return None, None
 
 
@@ -313,7 +317,7 @@ def submit_graph(
     repo: git.Repo,
     graph: dict,
     conan_path: str,
-    conanfile: Any,
+    conanfile: str,
     dry_run: bool = False,
 ) -> None:
     """Submit the graph to the GitHub Dependency Graph using the Submission API."""
@@ -355,6 +359,8 @@ def submit_graph(
     gh_token = None
     os.environ["GITHUB_TOKEN"] = ""
 
+    conanfile_path = pathlib.Path(conanfile).absolute()
+
     graph = {
         "version": 0,  # TODO: should we generate this somehow?
         "sha": repo_commit,
@@ -371,10 +377,10 @@ def submit_graph(
         # get current time
         "scanned": datetime.datetime.now().isoformat(),
         "manifests": {
-            conanfile.name: {
-                "name": conanfile.name,
+            conanfile_path.name: {
+                "name": conanfile_path.name,
                 "file": {
-                    "source_location": pathlib.Path(conanfile.abspath)
+                    "source_location": conanfile_path
                     .relative_to(repo.working_dir)
                     .as_posix(),
                 },
