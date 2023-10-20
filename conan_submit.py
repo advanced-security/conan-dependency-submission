@@ -53,8 +53,11 @@ class Package(anytree.NodeMixin):
 def find_conanfile(repo: git.Repo) -> Optional[Any]:
     """Find a conanfile.py or conanfile.txt in the repo"""
     for item in repo.tree().traverse():
-        if item.name in ("conanfile.py", "conanfile.txt"):
-            return item
+        try:
+            if item.name in ("conanfile.py", "conanfile.txt"):
+                return item.abspath
+        except AttributeError:
+            continue
     return None
 
 
@@ -76,17 +79,29 @@ def get_graph(
                     with open(graphfile, "r", encoding="utf-8") as file:
                         graph = json.load(file)
                         return graph, graphfile
-                except Exception as err:
-                    LOG.error("Cannot find graphfile: %s", err)
+                except (IOError, json.JSONDecodeError) as err:
+                    LOG.error("Cannot find or open graphfile: %s", err)
                     return None, None
             LOG.error("Cannot find conanfile")
             return None, None
+
+    # pre-check access to conanfile
+    if not os.access(conanfile, os.R_OK):
+        LOG.error("Cannot read conanfile: %s", Path(conanfile).relative_to(repo.working_dir))
+        return None, None
+
+    try:
+        with open(conanfile, "r", encoding="utf-8") as file:
+            LOG.debug("conanfile open: %s", file.read(1))
+    except IOError as err:
+        LOG.error("Cannot open or read from conanfile: %s", err)
+        return None, None
 
     # conan graph info conanfile.py|conanfile.txt --format=json > graph.json
     # clear the env so we don't leak secrets, etc. to the untrusted process
     # TODO: can I do this with the Conan Python API instead?
     process = subprocess.run(
-        [conan_path, "graph", "info", conanfile.abspath, "--format=json"],
+        [conan_path, "graph", "info", conanfile, "--format=json"],
         capture_output=True,
         env={"PATH": os.environ["PATH"]},
         check=False,
@@ -97,7 +112,7 @@ def get_graph(
     )
     if process.returncode != 0:
         if stderr.startswith("ERROR: No such file or directory:"):
-            LOG.error("Cannot find conanfile: %s", conanfile.abspath)
+            LOG.error("Cannot find conanfile: %s", conanfile)
             return None, None
         # just carry on with other "errors" - some conflicts raise errors, but still generate a graph
         # TODO: catch more fatal errors, e.g. permission denied
@@ -317,9 +332,14 @@ def submit_graph(
     LOG.debug(anytree.RenderTree(packages_tree))
 
     # submit to GitHub using the Submission API
-    gh_token = os.environ.get("GITHUB_TOKEN", None)
-    if gh_token is None:
-        LOG.error("GITHUB_TOKEN is not set")
+    gh_token_env_vars = ("GITHUB_TOKEN", "GH_TOKEN")
+
+    for var in gh_token_env_vars:
+        gh_token = os.environ.get(var, None)
+        if gh_token is not None:
+            break
+    else:
+        LOG.error("Neither GITHUB_TOKEN nor GH_TOKEN is set")
         return
 
     owner, reponame = urlparse(repo.remote().url).path.rstrip(".git").split("/")[1:]
@@ -436,7 +456,6 @@ def main() -> None:
     if remote_url.scheme != "https" or remote_url.netloc != args.github_server:
         LOG.error("Remote is not a GitHub repo: %s", remote)
         return
-    owner, reponame = remote_url.path.rstrip(".git").split("/")[1:]
 
     graph, conanfile = get_graph(args.conan_path, repo, args.conanfile)
 
