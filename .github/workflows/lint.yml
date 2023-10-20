@@ -1,12 +1,12 @@
 name: Python Lint Workflow
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [ "main" ]
+    branches: ["main"]
   schedule:
-    - cron: '22 3 * * 2'
+    - cron: "22 3 * * 2"
   workflow_dispatch:
 
 jobs:
@@ -14,8 +14,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        linter: ['flake8', 'pylint', 'ruff', 'mypy', 'pytype', 'pyright', 'fixit', 'pyre']
-        python-version: ['3.11']
+        linter:
+          [
+            "flake8",
+            "pylint",
+            "ruff",
+            "mypy",
+            "pytype",
+            "pyright",
+            "fixit",
+            "pyre",
+          ]
+        python-version: ["3.11"]
         os: [ubuntu-latest] # doesn't yet work on Windows
       fail-fast: false
 
