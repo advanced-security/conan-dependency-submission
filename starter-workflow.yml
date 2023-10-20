@@ -1,0 +1,16 @@
+name: Conan Dependency Submission
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [ "main" ]
+  schedule:
+    - cron: '22 3 * * 2'  # please pick a different time
+  workflow_dispatch:
+jobs:
+  conan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conan Dependency Submission
+        uses: advanced-security/conan-dependency-submission-action@v1

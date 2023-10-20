@@ -1,6 +1,6 @@
 # Conan Dependency Submission for GitHub
 
-This repository contains a GitHub Action that can be used to submit details of a Conan package to GitHub's Dependency Graph.
+This repository contains a GitHub Action that can be used to submit details of a [Conan](https://conan.io/) package to GitHub's [Dependency Graph](https://docs.github.com/).
 
 ## Actions Usage
 
@@ -50,9 +50,7 @@ with:
 conan_submit.py --help
 usage: conan_submit.py [-h] [--target TARGET] [--github-server GITHUB_SERVER] [--conan-path CONAN_PATH] [--conan-profile CONAN_PROFILE] [--conanfile CONANFILE] [--graphfile GRAPHFILE] [--debug] [--dry-run] repo
 
-Generate a graph from Conan packages, and submit to the GitHub Dependency Graph using the Submission API. See for reference: https://docs.conan.io/2/reference/conanfile/attributes.html https://github.com/package-url/purl-
-spec/blob/master/PURL-TYPES.rst#conan https://docs.github.com/en/enterprise-cloud@latest/rest/dependency-graph/dependency-submission?apiVersion=2022-11-28 https://docs.github.com/en/enterprise-server@3.9/rest/dependency-
-graph/dependency-submission?apiVersion=2022-11-28
+Generate a graph from Conan packages, and submit to the GitHub Dependency Graph using the Submission API.
 
 positional arguments:
   repo                  GitHub repository path
@@ -104,8 +102,30 @@ It's also a way of generating a Software Bill of Materials (SBOM) for your proje
 
 That is what we submit, but at present the Dependency Graph does not support showing the ecosystem for unsupported ecosystems.
 
-## Background
+### How did you decide what to submit?
+
+We looked at the [Package URL specification](https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan) and the [Dependency Submission API](https://docs.github.com/en/enterprise-cloud@latest/rest/dependency-graph/dependency-submission?apiVersion=2022-11-28), and matched the two up.
+
+### How does this Action do what it does?
 
 Conan uses a [central index](https://github.com/conan-io/conan-center-index) of packages. This is used by the `conan` client to find packages.
 
-This Action install the `conan` tool, wraps it, parses the results, and submits them to the [Dependency Submission API](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/using-the-dependency-submission-api).
+This Action installs the `conan` tool, wraps it, parses the results of inspecting a [`conanfile`](https://docs.conan.io/2/reference/conanfile/attributes.html), and submits them to the [Dependency Submission API](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/using-the-dependency-submission-api).
+
+## License
+
+This project is licensed under the terms of the MIT open source license. Please refer to the [LICENSE](LICENSE) for the full terms.
+
+## Maintainers
+
+See [CODEOWNERS](CODEOWNERS) for the list of maintainers.
+
+## Support
+
+> ℹ️ This is an _unofficial_ tool created by Field Security Services, and is not officially supported by GitHub.
+
+See the [SUPPORT](SUPPORT.md) file.
+
+## Background
+
+See the [CHANGELOG](CHANGELOG.md), [CONTRIBUTING](CONTRIBUTING.md), [SECURITY](SECURITY.md), [SUPPORT](SUPPORT.md), [CODE OF CONDUCT](CODE_OF_CONDUCT.md) and [PRIVACY](PRIVACY.md) files for more information.

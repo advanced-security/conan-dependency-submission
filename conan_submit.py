@@ -4,11 +4,7 @@
 Generate a graph from Conan packages,
 and submit to the GitHub Dependency Graph using the Submission API.
 
-See for reference:
-https://docs.conan.io/2/reference/conanfile/attributes.html
-https://github.com/package-url/purl-spec/blob/master/PURL-TYPES.rst#conan
-https://docs.github.com/en/enterprise-cloud@latest/rest/dependency-graph/dependency-submission?apiVersion=2022-11-28
-https://docs.github.com/en/enterprise-server@3.9/rest/dependency-graph/dependency-submission?apiVersion=2022-11-28
+Copyright (C) GitHub, 2023
 """
 
 import os
