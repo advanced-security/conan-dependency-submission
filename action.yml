@@ -71,6 +71,11 @@ runs:
           CONAN_VERSION="==${INPUTS_CONAN_VERSION}"
         fi
 
+        # set conanfile location, if given
+        if [[ -n "${INPUTS_CONANFILE}" ]]; then
+          CONAN_FLAGS+=" --conanfile ${INPUTS_CONANFILE}"
+        fi
+
         # set python command
         if [[ "${OSTYPE}" == "msys" ]]; then
           PYTHON_CMD=python
@@ -78,10 +83,11 @@ runs:
           PYTHON_CMD="python${INPUTS_PYTHON_VERSION}"
         fi
 
-        # set conanfile location, if given
-        if [[ -n "${INPUTS_CONANFILE}" ]]; then
-          CONAN_FLAGS+=" --conanfile ${INPUTS_CONANFILE}"
-        fi
+        # upgrade pip
+        "${PYTHON_CMD}" -m pip install --upgrade pip
+
+        # install conan
+        "${PYTHON_CMD}" -m pip install conan"${CONAN_VERSION}"
 
         # set conan-profile location, if given, or use/set default
         if [[ -n "${INPUTS_CONAN_PROFILE}" ]]; then
@@ -92,9 +98,7 @@ runs:
           fi
         fi
 
-        # install conan and script dependencies
-        "${PYTHON_CMD}" -m pip install --upgrade pip
-        "${PYTHON_CMD}" -m pip install conan"${CONAN_VERSION}"
+        # install script dependencies
         "${PYTHON_CMD}" -m pip install -r "${GITHUB_ACTION_PATH}/requirements.txt"
 
         # run conan submission
