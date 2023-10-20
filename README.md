@@ -100,6 +100,10 @@ There are workarounds you can use to match Dependency Graph content to local adv
 
 It's also a way of generating a Software Bill of Materials (SBOM) for your project.
 
+### Why doesn't the Dependency Graph show the package ecosystem as `conan`?
+
+That is what we submit, but at present the Dependency Graph does not support showing the ecosystem for unsupported ecosystems.
+
 ## Background
 
 Conan uses a [central index](https://github.com/conan-io/conan-center-index) of packages. This is used by the `conan` client to find packages.
