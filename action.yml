@@ -29,7 +29,7 @@ inputs:
     description: 'The conanfile to use'
     required: false
   conan-profile:
-    description: 'The conan profile to use'
+    description: 'Name of the Conan profile to use'
     required: false
 
 runs:

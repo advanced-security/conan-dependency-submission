@@ -107,7 +107,7 @@ def get_graph(
     conan_cmd = [conan_path, "graph", "info", conanfile, "--format=json"]
 
     if conan_profile is not None:
-        conan_cmd.extend(["--profile", conan_profile])
+        conan_cmd.extend([f"--profile:build={conan_profile}"])
 
     process = subprocess.run(
         conan_cmd,
@@ -434,7 +434,7 @@ def add_args(parser: argparse.ArgumentParser) -> None:
         "--conan-path", default="conan", required=False, help="Path to conan executable"
     )
     parser.add_argument(
-        "--conan-profile", required=False, help="Conan profile to use"
+        "--conan-profile", required=False, help="Name of Conan profile to use"
     )
     parser.add_argument(
         "--conanfile", required=False, help="Path to conanfile.py or conanfile.txt"
