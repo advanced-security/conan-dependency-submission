@@ -14,7 +14,7 @@ Please test your changes before submitting a PR.
 
 ## Submitting changes
 
-Please fork the repository, and raise a Pull Request (PR) for review.
+Please fork the repository, and raise a Pull Request (PR) for review. Please sign commits and use the Black python formatter.
 
 Remember to update the [README](README.md) and [CHANGELOG](CHANGELOG.md).
 
