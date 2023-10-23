@@ -15,7 +15,7 @@ inputs:
   conan-version:
     description: "The version of conan to use"
     required: false
-    default: "latest"
+    default: "2.0.8"
   github-server:
     description: "The GitHub server to use"
     required: false
@@ -25,6 +25,9 @@ inputs:
     required: false
   conan-profile:
     description: "Name of the Conan profile to use"
+    required: false
+  conan-config:
+    description: "Location of the Conan configuration to use (from git, http or a folder)"
     required: false
 
 runs:
@@ -48,6 +51,7 @@ runs:
         INPUTS_GITHUB_SERVER: ${{ inputs.github-server }}
         INPUTS_CONANFILE: ${{ inputs.conanfile }}
         INPUTS_CONAN_PROFILE: ${{ inputs.conan-profile }}
+        INPUTS_CONAN_CONFIG: ${{ inputs.conan-config }}
         GH_TOKEN: ${{ github.token }}
 
       run: |
@@ -88,7 +92,12 @@ runs:
         # install conan
         "${PYTHON_CMD}" -m pip -q install conan"${CONAN_VERSION}"
 
-        # set conan-profile location, if given, or use/set default
+        # install Conan configuration, if given
+        if [[ -n "${INPUTS_CONAN_CONFIG}" ]]; then
+          conan config install "${INPUTS_CONAN_CONFIG}"
+        fi
+
+        # set conan-profile name, if given, or use/set default
         if [[ -n "${INPUTS_CONAN_PROFILE}" ]]; then
           CONAN_FLAGS+=" --conan-profile ${INPUTS_CONAN_PROFILE}"
         else

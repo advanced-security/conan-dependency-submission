@@ -20,10 +20,11 @@ These are all optional, and have defaults or are auto-discovered.
 | ---- | ----------- | ------- |
 | `target` | Target directory | Root of repository |
 | `github-server` | GitHub server to use | `github.com` |
+| `conan-config` | Path to Conan configuration file (git/http/folder) | None |
 | `conan-profile` | Name of Conan profile to use | `default` |
 | `conanfile` | Path to `conanfile.py` or `conanfile.txt` | Auto-discovered |
 | `python-version` | Python version to use | `3.10` |
-| `conan-version` | Conan version to use | `latest` |
+| `conan-version` | Conan version to use | `2.0.8` |
 
 If you do not specifiy a `conanfile`, then the action will look for `conanfile.py` or `conanfile.txt` in the target repository.
 
@@ -40,6 +41,7 @@ uses: advanced-security/conan-dependency-submission@v1
 with:
   target: 'src'
   github-server: 'github.example.invalid'
+  conan-config: "./conan-config"
   conan-profile: 'myprofile'
   conanfile: 'src/conanfile.py'
   python-version: '3.9'
@@ -92,8 +94,6 @@ Dependabot needs to know about an ecosytem before it can show alerts for it. At 
 
 Dependabot, at the time of writing, also only shows alerts for curated advisories in the [GitHub Advisory Database](https://github.com/advisories), and at present there are none for Conan packages.
 
-Why bother with this then? Well, it's a good idea to submit your dependencies to the Dependency Graph, so that when Dependabot does support Conan, it will already have the data it needs.
-
 ### What use can I make of this if Dependabot doesn't support Conan?
 
 There are workarounds you can use to match Dependency Graph content to local advisories, such as by using the [GitHub Field GHAS Toolkit](https://github.com/GeekMasher/ghas-toolkit).
@@ -102,7 +102,7 @@ It's also a way of generating a Software Bill of Materials (SBOM) for your proje
 
 ### Why doesn't the Dependency Graph show the package ecosystem as `conan`?
 
-That is what we submit, but at present the Dependency Graph does not support showing the ecosystem for unsupported ecosystems.
+That is what we submit, but at present the Dependency Graph does not support showing the ecosystem for unsupported ecosystems: they show up as `unknown`.
 
 ### How did you decide what to submit?
 
