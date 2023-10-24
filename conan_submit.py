@@ -401,7 +401,7 @@ def submit_graph(
         f"https://{host_and_path}/repos/{quote_plus(owner)}/{quote_plus(reponame)}/dependency-graph/snapshots"
     )
 
-    LOG.debug("Submitting to %s", submission_url)
+    LOG.debug("::debug::Submitting to %s", submission_url)
 
     request = requests.Request("POST", submission_url, headers=headers, json=graph)
     prepared = request.prepare()
@@ -447,14 +447,14 @@ def main() -> None:
     remote = repo.remote()
     if remote is None:
         LOG.error("Cannot find remote for repo: %s", args.repo)
-        return
+        exit(1)
 
     target = args.target if args.target is not None else args.repo
 
     remote_url = urlparse(remote.url)
     if remote_url.scheme != "https" or remote_url.netloc != args.github_server:
         LOG.error("Remote is not a GitHub repo: %s", remote)
-        return
+        exit(1)
 
     graph, conanfile = get_graph(
         args.conan_path,
@@ -465,10 +465,12 @@ def main() -> None:
         graphfile=args.graphfile,
     )
 
-    LOG.debug(json.dumps(graph, indent=2))
-
     if graph is not None and conanfile is not None:
+        LOG.debug(json.dumps(graph, indent=2))
         submit_graph(args.github_server, repo, graph, args.conan_path, conanfile, args.dry_run)
+    else:
+        LOG.error("Cannot submit graph")
+        exit(1)
 
 
 if __name__ == "__main__":
