@@ -314,7 +314,15 @@ def submit_graph(
 ) -> None:
     """Submit the graph to the GitHub Dependency Graph using the Submission API."""
     repo_commit = repo.head.commit.hexsha
-    repo_ref = f"refs/heads/{str(repo.head.ref)}"
+
+    repo_ref = os.environ.get("GITHUB_REF", None)
+
+    if repo_ref is None:
+        try:
+            repo_ref = f"refs/heads/{str(repo.head.ref)}"
+        except TypeError:
+            LOG.error("Cannot find repo ref - no GITHUB_REF and in detached HEAD state")
+            return
 
     LOG.debug("repo_commit: %s", repo_commit)
 
