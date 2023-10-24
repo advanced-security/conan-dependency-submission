@@ -41,6 +41,14 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - name: Setup SHA (PR)
+      if: ${{ github.event_name == 'pull_request' }}
+      env:
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      shell: bash
+      run: |
+        echo "LAST_COMMIT_SHA=${PR_HEAD_SHA}" >> ${GITHUB_ENV}
+
     - name: Run Conan
       shell: bash
 
@@ -77,6 +85,11 @@ runs:
         # set conanfile location, if given
         if [[ -n "${INPUTS_CONANFILE}" ]]; then
           CONAN_FLAGS+=" --conanfile ${INPUTS_CONANFILE}"
+        fi
+
+        # set commit SHA, if given
+        if [[ -n "${LAST_COMMIT_SHA}" ]]; then
+          CONAN_FLAGS+=" --sha ${LAST_COMMIT_SHA}"
         fi
 
         # set python command

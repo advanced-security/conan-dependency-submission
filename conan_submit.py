@@ -311,16 +311,16 @@ def submit_graph(
     graph: dict,
     conan_path: str,
     conanfile: str,
+    sha: Optional[str] = None,
     dry_run: bool = False,
 ) -> None:
     """Submit the graph to the GitHub Dependency Graph using the Submission API."""
-    repo_commit = os.environ.get("GITHUB_SHA", None)
+    repo_commit = sha if sha is not None else os.environ.get("GITHUB_SHA", None)
 
     if repo_commit is None:
         repo_commit = repo.head.commit.hexsha
 
-    LOG.debug("::debug::repo.head.commit.hexsha: %s", repo.head.commit.hexsha)
-    LOG.debug("::debug::GITHUB_SHA: %s", os.environ.get("GITHUB_SHA", "N/A"))
+    LOG.debug("::debug::SHA: %s", repo_commit)
 
     repo_ref = os.environ.get("GITHUB_REF", None)
 
@@ -428,6 +428,7 @@ def add_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--conan-profile", required=False, help="Name of Conan profile to use")
     parser.add_argument("--conanfile", required=False, help="Path to conanfile.py or conanfile.txt")
     parser.add_argument("--graphfile", required=False, help="Path to pre-made Conan graph JSON file")
+    parser.add_argument("--sha", required=False, help="Commit SHA to use for graph submission")
     parser.add_argument("--debug", "-d", action="store_true", help="Enable debug output")
     parser.add_argument(
         "--dry-run",
@@ -471,7 +472,7 @@ def main() -> None:
 
     if graph is not None and conanfile is not None:
         LOG.debug(json.dumps(graph, indent=2))
-        submit_graph(args.github_server, repo, graph, args.conan_path, conanfile, args.dry_run)
+        submit_graph(args.github_server, repo, graph, args.conan_path, conanfile, args.sha, args.dry_run)
     else:
         LOG.error("Cannot submit graph")
         sys.exit(1)
