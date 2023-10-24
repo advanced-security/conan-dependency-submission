@@ -2,7 +2,19 @@
 
 > ℹ️ This is an _unofficial_ tool created by Field Security Services, and is not officially supported by GitHub.
 
-This repository contains a GitHub Action that can be used to submit details of a [Conan](https://conan.io/) package to GitHub's [Dependency Graph](https://docs.github.com/).
+This repository contains a GitHub Action that can be used to submit details of a [Conan](https://conan.io/) package to GitHub's [Dependency Graph](https://docs.github.com/en/enterprise-cloud@latest/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph).
+
+> 💡 Using this Action will not yet give you Dependabot alerts or updates for Conan packages. See the FAQ below for more details.
+
+This can let you see what packages your project depends on in GitHub, and can be used to generate a Software Bill of Materials (SBOM) for your project.
+
+It also allows [Dependency Review](https://github.com/marketplace/actions/dependency-review) to check packages based on their license and name.
+
+## Results
+
+This is an example of the results of using this Action:
+
+![Dependency Graph](dependency-graph-conan-submission-example.png)
 
 ## Actions Usage
 
@@ -48,10 +60,14 @@ with:
   conan-version: '1.40.0'
 ```
 
+### Sample starter workflow
+
+[starter-workflow.yml](starter-workflow.yml) is a sample workflow that uses this action.
+
 ## Command Line Usage
 
 ```bash
-conan_submit.py --help
+./conan_submit.py --help
 usage: conan_submit.py [-h] [--target TARGET] [--github-server GITHUB_SERVER] [--conan-path CONAN_PATH] [--conan-profile CONAN_PROFILE] [--conanfile CONANFILE] [--graphfile GRAPHFILE] [--debug] [--dry-run] repo
 
 Generate a graph from Conan packages, and submit to the GitHub Dependency Graph using the Submission API.
@@ -84,21 +100,25 @@ GitHub's Dependency Graph is a great way to see what packages your project depen
 
 ### Where does it get platform specific details from?
 
-It uses the Actions runner to run `conan`, and takes details from that platform.
+First, note that platform-specific details are currently not retained by Dependency Graph, but are submitted.
 
-If you do not use the default Actions runner to build your Conan package, then use an Actions runner that is the same platform as your build system, to ensure a match.
+It uses the Actions runner to run `conan`, and by default it takes details from there, automatically building a default profile for Conan.
+
+If you do not want to use these details, then you can provide your own Conan configuration and choose a profile from there, or use an Actions runner that is the same platform as your build system, to ensure a match.
 
 ### Dependabot isn't showing any alerts - why?
 
 Dependabot needs to know about an ecosytem before it can show alerts for it. At the time of writing, it doesn't support Conan.
 
-Dependabot, at the time of writing, also only shows alerts for curated advisories in the [GitHub Advisory Database](https://github.com/advisories), and at present there are none for Conan packages.
+Dependabot also only shows alerts for curated advisories in the [GitHub Advisory Database](https://github.com/advisories), and at present there are none for Conan packages.
 
 ### What use can I make of this if Dependabot doesn't support Conan?
 
 There are workarounds you can use to match Dependency Graph content to local advisories, such as by using the [GitHub Field GHAS Toolkit](https://github.com/GeekMasher/ghas-toolkit).
 
 It's also a way of generating a Software Bill of Materials (SBOM) for your project.
+
+[Dependency Review](https://github.com/marketplace/actions/dependency-review) also works with the Dependency Graph, and can be used to enforce policies on the packages you use, such as license compliance and denying specific packages.
 
 ### Why doesn't the Dependency Graph show the package ecosystem as `conan`?
 

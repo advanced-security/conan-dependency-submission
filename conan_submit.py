@@ -8,6 +8,7 @@ Copyright (C) GitHub, 2023
 """
 
 import os
+import sys
 import argparse
 import logging
 import json
@@ -310,13 +311,27 @@ def submit_graph(
     graph: dict,
     conan_path: str,
     conanfile: str,
+    sha: Optional[str] = None,
     dry_run: bool = False,
 ) -> None:
     """Submit the graph to the GitHub Dependency Graph using the Submission API."""
-    repo_commit = repo.head.commit.hexsha
-    repo_ref = f"refs/heads/{str(repo.head.ref)}"
+    repo_commit = sha if sha is not None else os.environ.get("GITHUB_SHA", None)
 
-    LOG.debug("repo_commit: %s", repo_commit)
+    if repo_commit is None:
+        repo_commit = repo.head.commit.hexsha
+
+    LOG.debug("::debug::SHA: %s", repo_commit)
+
+    repo_ref = os.environ.get("GITHUB_REF", None)
+
+    if repo_ref is None:
+        try:
+            repo_ref = f"refs/heads/{str(repo.head.ref)}"
+        except TypeError:
+            LOG.error("Cannot find repo ref - no GITHUB_REF and in detached HEAD state")
+            return
+
+    LOG.debug("::debug::repo_ref: %s", repo_ref)
 
     packages_dict: dict[int, Package] = {}
     packages_tree = anytree.AnyNode(name="packages")
@@ -383,14 +398,14 @@ def submit_graph(
         },
     }
 
-    LOG.debug("graph: %s", json.dumps(graph, indent=2))
+    LOG.debug("::debug::graph: %s", json.dumps(graph, indent=2))
 
     host_and_path = "api.github.com" if server in ("github.com", "api.github.com") else f"{quote_plus(server)}/api/v3"
     submission_url = (
         f"https://{host_and_path}/repos/{quote_plus(owner)}/{quote_plus(reponame)}/dependency-graph/snapshots"
     )
 
-    LOG.debug("Submitting to %s", submission_url)
+    LOG.debug("::debug::Submitting to %s", submission_url)
 
     request = requests.Request("POST", submission_url, headers=headers, json=graph)
     prepared = request.prepare()
@@ -413,6 +428,7 @@ def add_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--conan-profile", required=False, help="Name of Conan profile to use")
     parser.add_argument("--conanfile", required=False, help="Path to conanfile.py or conanfile.txt")
     parser.add_argument("--graphfile", required=False, help="Path to pre-made Conan graph JSON file")
+    parser.add_argument("--sha", required=False, help="Commit SHA to use for graph submission")
     parser.add_argument("--debug", "-d", action="store_true", help="Enable debug output")
     parser.add_argument(
         "--dry-run",
@@ -436,14 +452,14 @@ def main() -> None:
     remote = repo.remote()
     if remote is None:
         LOG.error("Cannot find remote for repo: %s", args.repo)
-        return
+        sys.exit(1)
 
     target = args.target if args.target is not None else args.repo
 
     remote_url = urlparse(remote.url)
     if remote_url.scheme != "https" or remote_url.netloc != args.github_server:
         LOG.error("Remote is not a GitHub repo: %s", remote)
-        return
+        sys.exit(1)
 
     graph, conanfile = get_graph(
         args.conan_path,
@@ -454,10 +470,12 @@ def main() -> None:
         graphfile=args.graphfile,
     )
 
-    LOG.debug(json.dumps(graph, indent=2))
-
     if graph is not None and conanfile is not None:
-        submit_graph(args.github_server, repo, graph, args.conan_path, conanfile, args.dry_run)
+        LOG.debug(json.dumps(graph, indent=2))
+        submit_graph(args.github_server, repo, graph, args.conan_path, conanfile, args.sha, args.dry_run)
+    else:
+        LOG.error("Cannot submit graph")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

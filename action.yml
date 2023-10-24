@@ -41,6 +41,14 @@ runs:
       with:
         python-version: ${{ inputs.python-version }}
 
+    - name: Setup SHA (PR)
+      if: ${{ github.event_name == 'pull_request' }}
+      env:
+        PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      shell: bash
+      run: |
+        echo "LAST_COMMIT_SHA=${PR_HEAD_SHA}" >> ${GITHUB_ENV}
+
     - name: Run Conan
       shell: bash
 
@@ -79,6 +87,11 @@ runs:
           CONAN_FLAGS+=" --conanfile ${INPUTS_CONANFILE}"
         fi
 
+        # set commit SHA, if given
+        if [[ -n "${LAST_COMMIT_SHA}" ]]; then
+          CONAN_FLAGS+=" --sha ${LAST_COMMIT_SHA}"
+        fi
+
         # set python command
         if [[ "${OSTYPE}" == "msys" ]]; then
           PYTHON_CMD=python
@@ -112,7 +125,7 @@ runs:
         "${PYTHON_CMD}" -m pip install -q -r "${GITHUB_ACTION_PATH}/requirements.txt"
 
         # run conan submission
-        ./conan_submit.py --github-server "${INPUTS_GITHUB_SERVER}" ${CONAN_FLAGS} "${GITHUB_WORKSPACE}"
+        "${GITHUB_ACTION_PATH}"/conan_submit.py --github-server "${INPUTS_GITHUB_SERVER}" ${CONAN_FLAGS} "${GITHUB_WORKSPACE}"
 
     # - name: Upload Dependency Graph as debug artefact
     #   if: ${{ always() && runner.debug == '1' && hashFiles(inputs.output) != '' }}
