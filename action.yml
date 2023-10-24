@@ -112,7 +112,7 @@ runs:
         "${PYTHON_CMD}" -m pip install -q -r "${GITHUB_ACTION_PATH}/requirements.txt"
 
         # run conan submission
-        ./conan_submit.py --github-server "${INPUTS_GITHUB_SERVER}" ${CONAN_FLAGS} "${GITHUB_WORKSPACE}"
+        "${GITHUB_ACTION_PATH}"/conan_submit.py --github-server "${INPUTS_GITHUB_SERVER}" ${CONAN_FLAGS} "${GITHUB_WORKSPACE}"
 
     # - name: Upload Dependency Graph as debug artefact
     #   if: ${{ always() && runner.debug == '1' && hashFiles(inputs.output) != '' }}
