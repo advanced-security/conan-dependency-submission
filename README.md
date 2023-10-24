@@ -4,11 +4,11 @@
 
 This repository contains a GitHub Action that can be used to submit details of a [Conan](https://conan.io/) package to GitHub's [Dependency Graph](https://docs.github.com/en/enterprise-cloud@latest/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph).
 
-> 💡 Using this Action will not yet give you Dependabot alerts or updates for Conan packages. See the FAQ below for more details.
+> 💡 Using this Action will not yet give you Dependabot alerts or updates for Conan packages. Dependency Review support is also limited. See the FAQ below for more details.
 
-This can let you see what packages your project depends on in GitHub, and can be used to generate a Software Bill of Materials (SBOM) for your project.
+This can let you see what packages your project depends on in GitHub's Insights, and can be used to generate a Software Bill of Materials (SBOM) for your project.
 
-It also allows [Dependency Review](https://github.com/marketplace/actions/dependency-review) to check packages based on their license and name.
+It also allows [Dependency Review](https://github.com/marketplace/actions/dependency-review) to show changed packages in a PR. Checks based on their license and name are not yet possible.
 
 ## Results
 
@@ -88,6 +88,7 @@ options:
                         Path to conanfile.py or conanfile.txt
   --graphfile GRAPHFILE
                         Path to pre-made Conan graph JSON file
+  --sha SHA             Commit SHA to use for graph submission
   --debug, -d           Enable debug output
   --dry-run             Do not submit to GitHub server - just a dry-run
 ```
@@ -112,13 +113,21 @@ Dependabot needs to know about an ecosytem before it can show alerts for it. At 
 
 Dependabot also only shows alerts for curated advisories in the [GitHub Advisory Database](https://github.com/advisories), and at present there are none for Conan packages.
 
-### What use can I make of this if Dependabot doesn't support Conan?
+### Dependency Review has problems - what's wrong?
+
+Dependency Graph does not accept submissions of license information for Conan packages, so Dependency Review cannot show license information.
+
+The `license` key is set in the Conan PURL, but Dependency Graph does not extract that at present.
+
+The ecosystem is not preserved by Dependency Graph, so Dependency Review cannot block specific packages.
+
+### What use can I make of this if Dependabot doesn't support Conan, and Dependency Review's support is only partial?
 
 There are workarounds you can use to match Dependency Graph content to local advisories, such as by using the [GitHub Field GHAS Toolkit](https://github.com/GeekMasher/ghas-toolkit).
 
 It's also a way of generating a Software Bill of Materials (SBOM) for your project.
 
-[Dependency Review](https://github.com/marketplace/actions/dependency-review) also works with the Dependency Graph, and can be used to enforce policies on the packages you use, such as license compliance and denying specific packages.
+[Dependency Review](https://github.com/marketplace/actions/dependency-review) also works with the Dependency Graph, and can be used show changed packages at PR.
 
 ### Why doesn't the Dependency Graph show the package ecosystem as `conan`?
 
