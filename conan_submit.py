@@ -313,7 +313,10 @@ def submit_graph(
     dry_run: bool = False,
 ) -> None:
     """Submit the graph to the GitHub Dependency Graph using the Submission API."""
-    repo_commit = repo.head.commit.hexsha
+    repo_commit = os.environ.get("GITHUB_SHA", None)
+
+    if repo_commit is None:
+        repo_commit = repo.head.commit.hexsha
 
     repo_ref = os.environ.get("GITHUB_REF", None)
 
@@ -324,7 +327,7 @@ def submit_graph(
             LOG.error("Cannot find repo ref - no GITHUB_REF and in detached HEAD state")
             return
 
-    LOG.debug("repo_commit: %s", repo_commit)
+    LOG.debug("::debug::repo_commit: %s", repo_commit)
 
     packages_dict: dict[int, Package] = {}
     packages_tree = anytree.AnyNode(name="packages")
@@ -391,7 +394,7 @@ def submit_graph(
         },
     }
 
-    LOG.debug("graph: %s", json.dumps(graph, indent=2))
+    LOG.debug("::debug::graph: %s", json.dumps(graph, indent=2))
 
     host_and_path = "api.github.com" if server in ("github.com", "api.github.com") else f"{quote_plus(server)}/api/v3"
     submission_url = (
