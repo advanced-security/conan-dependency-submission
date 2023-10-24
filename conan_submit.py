@@ -319,7 +319,7 @@ def submit_graph(
     if repo_commit is None:
         repo_commit = repo.head.commit.hexsha
 
-    LOG.debug("::debug::repo_commit: %s", repo_commit)
+    LOG.debug("::debug::repo.head.commit.hexsha: %s", repo.head.commit.hexsha)
     LOG.debug("::debug::GITHUB_SHA: %s", os.environ.get("GITHUB_SHA", "N/A"))
 
     repo_ref = os.environ.get("GITHUB_REF", None)
