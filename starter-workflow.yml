@@ -13,4 +13,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Conan Dependency Submission
-        uses: advanced-security/conan-dependency-submission-action@v1
+        uses: advanced-security/conan-dependency-submission@v1
