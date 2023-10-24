@@ -10,6 +10,12 @@ This can let you see what packages your project depends on in GitHub, and can be
 
 It also allows [Dependency Review](https://github.com/marketplace/actions/dependency-review) to check packages based on their license and name.
 
+## Results
+
+This is an example of the results of using this Action:
+
+![Dependency Graph](dependency-graph-conan-submission-example.png)
+
 ## Actions Usage
 
 To use this action, add the following step to your workflow:
@@ -53,6 +59,10 @@ with:
   python-version: '3.9'
   conan-version: '1.40.0'
 ```
+
+### Sample starter workflow
+
+[starter-workflow.yml](starter-workflow.yml) is a sample workflow that uses this action.
 
 ## Command Line Usage
 
