@@ -1,6 +1,4 @@
 name: Python Lint Workflow
-permissions:
-  contents: read
 on:
   push:
     branches: ["main"]
@@ -10,6 +8,10 @@ on:
   schedule:
     - cron: "22 3 * * 2"
   workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
   lint:
