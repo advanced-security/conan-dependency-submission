@@ -1,6 +1,7 @@
 # Conan Dependency Submission for GitHub
 
-> ℹ️ This is an _unofficial_ tool created by Field Security Services, and is not officially supported by GitHub.
+> [!NOTE]
+> This is an _unofficial_ tool created by Field Security Services, and is not officially supported by GitHub.
 
 This repository contains a GitHub Action that can be used to submit details of a [Conan](https://conan.io/) package to GitHub's [Dependency Graph](https://docs.github.com/en/enterprise-cloud@latest/code-security/supply-chain-security/understanding-your-software-supply-chain/about-the-dependency-graph).
 
@@ -119,8 +120,6 @@ Dependency Graph does not accept submissions of license information for Conan pa
 
 The `license` key is set in the Conan PURL, but Dependency Graph does not extract that at present.
 
-The ecosystem is not preserved by Dependency Graph, so Dependency Review cannot block specific packages.
-
 ### What use can I make of this if Dependabot doesn't support Conan, and Dependency Review's support is only partial?
 
 There are workarounds you can use to match Dependency Graph content to local advisories, such as by using the [GitHub Field GHAS Toolkit](https://github.com/GeekMasher/ghas-toolkit).
@@ -128,10 +127,6 @@ There are workarounds you can use to match Dependency Graph content to local adv
 It's also a way of generating a Software Bill of Materials (SBOM) for your project.
 
 [Dependency Review](https://github.com/marketplace/actions/dependency-review) also works with the Dependency Graph, and can be used show changed packages at PR.
-
-### Why doesn't the Dependency Graph show the package ecosystem as `conan`?
-
-That is what we submit, but at present the Dependency Graph does not support showing the ecosystem for unsupported ecosystems: they show up as `unknown`.
 
 ### How did you decide what to submit?
 
@@ -153,7 +148,8 @@ See [CODEOWNERS](CODEOWNERS) for the list of maintainers.
 
 ## Support
 
-> ℹ️ This is an _unofficial_ tool created by Field Security Services, and is not officially supported by GitHub.
+> [!NOTE]
+> This is an _unofficial_ tool created by Field Security Services, and is not officially supported by GitHub.
 
 See the [SUPPORT](SUPPORT.md) file.
 
