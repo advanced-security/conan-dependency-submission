@@ -9,6 +9,10 @@ on:
     - cron: "22 3 * * 2"
   workflow_dispatch:
 
+permissions:
+  contents: read
+  security-events: write
+
 jobs:
   lint:
     runs-on: ${{ matrix.os }}
