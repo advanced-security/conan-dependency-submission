@@ -9,7 +9,13 @@ This repository contains a GitHub Action that can be used to submit details of a
 
 This can let you see what packages your project depends on in GitHub's Insights, and can be used to generate a Software Bill of Materials (SBOM) for your project.
 
-It also allows [Dependency Review](https://github.com/marketplace/actions/dependency-review) to show changed packages in a PR. Checks based on their license and name are not yet possible.
+Since [Dependency Graph added support for all purl-identified package ecosystems](https://github.blog/changelog/2025-04-03-dependency-graph-supports-all-purl-identified-package-ecosystems/) (April 2025), the submitted Conan packages are shown with:
+
+* the `conan` ecosystem name, instead of being reported as an unknown ecosystem
+* the transitive path showing how an indirect dependency was pulled in
+* the full submitted Package URL (purl), available in the `packageUrl` field of the `DependencyGraphDependency` object in the GraphQL API
+
+It also allows [Dependency Review](https://github.com/marketplace/actions/dependency-review) to show changed packages in a PR. Checks based on their license are not yet possible.
 
 ## Results
 
@@ -102,7 +108,7 @@ GitHub's Dependency Graph is a great way to see what packages your project depen
 
 ### Where does it get platform specific details from?
 
-First, note that platform-specific details are currently not retained by Dependency Graph, but are submitted.
+These details are submitted as qualifiers on the Conan Package URL (purl). Since Dependency Graph [added support for all purl-identified package ecosystems](https://github.blog/changelog/2025-04-03-dependency-graph-supports-all-purl-identified-package-ecosystems/), the submitted purl is retained, and can be read from the `packageUrl` field of the `DependencyGraphDependency` object in the GraphQL API.
 
 It uses the Actions runner to run `conan`, and by default it takes details from there, automatically building a default profile for Conan.
 
@@ -119,6 +125,10 @@ Dependabot also only shows alerts for curated advisories in the [GitHub Advisory
 Dependency Graph does not accept submissions of license information for Conan packages, so Dependency Review cannot show license information.
 
 The `license` key is set in the Conan PURL, but Dependency Graph does not extract that at present.
+
+### Are indirect (transitive) dependencies shown?
+
+Yes. This Action submits the `relationship` (`direct` or `indirect`) for each package, and since the April 2025 Dependency Graph improvements the dependency graph also shows the transitive path that pulled an indirect Conan package in.
 
 ### What use can I make of this if Dependabot doesn't support Conan, and Dependency Review's support is only partial?
 
