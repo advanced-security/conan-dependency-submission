@@ -124,7 +124,7 @@ Dependabot also only shows alerts for curated advisories in the [GitHub Advisory
 
 Dependency Graph does not accept submissions of license information for Conan packages, so Dependency Review cannot show license information.
 
-The `license` key is set in the Conan PURL, but Dependency Graph does not extract that at present.
+The `license` key is set in the Conan PURL, and the purl is now retained by Dependency Graph, but the license is not surfaced as license information for Dependency Review to use.
 
 ### Are indirect (transitive) dependencies shown?
 
