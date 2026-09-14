@@ -21,7 +21,8 @@ It also allows [Dependency Review](https://github.com/marketplace/actions/depend
 
 This is an example of the results of using this Action:
 
-![Dependency Graph](dependency-graph-conan-submission-example.png)
+<img width="768" height="1374" alt="image" src="https://github.com/user-attachments/assets/970ed5e8-3d60-4288-bfdc-15cdae40204b" />
+
 
 ## Actions Usage
 
