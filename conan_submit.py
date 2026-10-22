@@ -201,8 +201,13 @@ def make_purl(package: Package, dep: bool = False) -> str:
         query = {}
 
         for key, value in package.metadata.items():
-            if key not in conan_mapped_metadata_keys and key not in conan_handled_keys and key not in conan_not_ok_keys:
-                query[key] = value
+            if key in conan_mapped_metadata_keys or key in conan_handled_keys or key in conan_not_ok_keys:
+                continue
+            if isinstance(value, (list, tuple, dict)):
+                # nested values (e.g. "info", "topics") cannot be represented
+                # as a single purl qualifier value
+                continue
+            query[key] = value
 
         for key, mapped_name in conan_mapped_metadata_keys.items():
             if key in package.metadata:
@@ -226,16 +231,19 @@ def process_graph(graph: dict, packages: dict[int, Package]) -> None:
             ref = entry["ref"]
 
             if "/" in ref:
-                name, remainder = ref.split("/")
+                name, remainder = ref.split("/", 1)
             else:
                 name = ref
                 remainder = None
 
             if remainder is not None and "#" in remainder:
-                version, sha = remainder.split("#")
+                version, sha = remainder.split("#", 1)
             else:
                 version = remainder
                 sha = None
+
+            if version is not None and "@" in version:
+                version = version.split("@", 1)[0]
 
             metadata = {}
 
@@ -353,7 +361,7 @@ def submit_graph(
         LOG.error("Neither GITHUB_TOKEN nor GH_TOKEN is set")
         return
 
-    owner, reponame = urlparse(repo.remote().url).path.rstrip(".git").split("/")[1:]
+    owner, reponame = urlparse(repo.remote().url).path.removesuffix(".git").split("/")[1:]
 
     # set GitHub API headers
     headers = {
@@ -382,7 +390,7 @@ def submit_graph(
             "url": "https://conan.io/",
         },
         # get current time
-        "scanned": datetime.datetime.now().isoformat(),
+        "scanned": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "manifests": {
             conanfile_path.name: {
                 "name": conanfile_path.name,
@@ -392,7 +400,7 @@ def submit_graph(
                 "resolved": {
                     package.name: make_dependency(package)
                     for package in packages_dict.values()
-                    if package.name != "conanfile"
+                    if package.id_ != 0
                 },
             }
         },
