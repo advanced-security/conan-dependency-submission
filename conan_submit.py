@@ -226,16 +226,19 @@ def process_graph(graph: dict, packages: dict[int, Package]) -> None:
             ref = entry["ref"]
 
             if "/" in ref:
-                name, remainder = ref.split("/")
+                name, remainder = ref.split("/", 1)
             else:
                 name = ref
                 remainder = None
 
             if remainder is not None and "#" in remainder:
-                version, sha = remainder.split("#")
+                version, sha = remainder.split("#", 1)
             else:
                 version = remainder
                 sha = None
+
+            if version is not None and "@" in version:
+                version = version.split("@", 1)[0]
 
             metadata = {}
 
@@ -353,7 +356,7 @@ def submit_graph(
         LOG.error("Neither GITHUB_TOKEN nor GH_TOKEN is set")
         return
 
-    owner, reponame = urlparse(repo.remote().url).path.rstrip(".git").split("/")[1:]
+    owner, reponame = urlparse(repo.remote().url).path.removesuffix(".git").split("/")[1:]
 
     # set GitHub API headers
     headers = {
