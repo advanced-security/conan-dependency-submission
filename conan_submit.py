@@ -201,8 +201,13 @@ def make_purl(package: Package, dep: bool = False) -> str:
         query = {}
 
         for key, value in package.metadata.items():
-            if key not in conan_mapped_metadata_keys and key not in conan_handled_keys and key not in conan_not_ok_keys:
-                query[key] = value
+            if key in conan_mapped_metadata_keys or key in conan_handled_keys or key in conan_not_ok_keys:
+                continue
+            if isinstance(value, (list, tuple, dict)):
+                # nested values (e.g. "info", "topics") cannot be represented
+                # as a single purl qualifier value
+                continue
+            query[key] = value
 
         for key, mapped_name in conan_mapped_metadata_keys.items():
             if key in package.metadata:
@@ -385,7 +390,7 @@ def submit_graph(
             "url": "https://conan.io/",
         },
         # get current time
-        "scanned": datetime.datetime.now().isoformat(),
+        "scanned": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "manifests": {
             conanfile_path.name: {
                 "name": conanfile_path.name,
@@ -395,7 +400,7 @@ def submit_graph(
                 "resolved": {
                     package.name: make_dependency(package)
                     for package in packages_dict.values()
-                    if package.name != "conanfile"
+                    if package.id_ != 0
                 },
             }
         },
