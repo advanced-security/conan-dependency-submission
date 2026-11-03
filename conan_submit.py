@@ -203,9 +203,12 @@ def make_purl(package: Package, dep: bool = False) -> str:
         for key, value in package.metadata.items():
             if key in conan_mapped_metadata_keys or key in conan_handled_keys or key in conan_not_ok_keys:
                 continue
+            if key == "license" and isinstance(value, (list, tuple)):
+                if not value or not all(isinstance(item, str) and item for item in value):
+                    continue
+                value = ",".join(value)
             if isinstance(value, (list, tuple, dict)):
-                # nested values (e.g. "info", "topics") cannot be represented
-                # as a single purl qualifier value
+                # Other structured metadata cannot be used directly as qualifiers.
                 continue
             query[key] = value
 
